@@ -14,8 +14,6 @@
 #include<stdint.h>
 
 #include"RACH-ConfigDedicated.h"
-#include"BeamFailureRecoveryConfig.h"
-#include"SubcarrierSpacing.h"
 
 
 #define RAR_PAYLOAD_SIZE_MAX 128
@@ -30,15 +28,12 @@ uint8_t PREAMBLE_TRANSMISSION_COUNTER ;
 uint8_t PREAMBLE_POWER_RAMPING_COUNTER; 
 uint8_t PREAMBLE_POWER_RAMPING_STEP ;
 uint8_t PREAMBLE_RECEIVED_TARGET_POWER;
-int DELTA_PREAMBLE; 
 
 typedef struct {
     uint8_t payload[RAR_PAYLOAD_SIZE_MAX];
 }RAR_PDU;
 
-
 RAR_PDU RAR_pdu;
-BeamFailureRecoveryConfig_t *BFRC;
 
 
 /*Preamble format has to be acquired from prach-configindex (RACH-ConfigGeneric.h)
@@ -61,20 +56,21 @@ typedef enum {
 
 int preamble_transmit(preamble_format format, 
                        e_SubcarrierSpacing subcarrierspacing,
-                       RACH_ConfigDedicated_t *attempt1,
+                       long  preamble_received_targetPower,
+                       long  preamble_trans_max,
                        int s_id,
                        int t_id,
                        int f_id,
                        int ul_carrier_id )
 {
   
-  long  preamble_received_targetPower = attempt1->cfra->occasions->rach_ConfigGeneric.preambleReceivedTargetPower;
-  long  preamble_trans_max = attempt1->cfra->occasions->rach_ConfigGeneric.preambleTransMax;
-  
+
     if ((PREAMBLE_TRANSMISSION_COUNTER > 1)&&((PREAMBLE_POWER_RAMPING_COUNTER <= preamble_trans_max/*$e2c*/)||(1))&& (1)/*$e2c*/)
   {
     PREAMBLE_POWER_RAMPING_COUNTER += 1 ;
   }
+    
+
     
     uint8_t scs;
     /*sub-carrier spacing configuration determined by msg1-SubcarrierSpacing(IE BeamFailureRecoveryConfig)
@@ -132,7 +128,7 @@ int preamble_transmit(preamble_format format,
     
     int RA_RNTI;
     /* Redo the below if condition properly  */
-    if ((BFRC == NULL) && (attempt1->cfra == NULL))
+    if ((BFRC == NULL) && (Contention_free == NULL))
     {
         
         RA_RNTI = 1 + s_id + (14 * t_id) + (14 * 80 * f_id) + (14 * 80 * 8 * ul_carrier_id);
@@ -265,30 +261,26 @@ int ackSI,sockfd;
 MAC_PDU_RAR m_pdu;
 
 sockfd = create_socket();
-
    
-RACH_ConfigDedicated_t *attempt1 = (RACH_ConfigDedicated_t*) calloc(1,sizeof(RACH_ConfigDedicated_t));
-attempt1->cfra = (CFRA_t *) calloc(1,sizeof(CFRA_t *));
-attempt1->cfra->occasions = (struct CFRA__occasions *) calloc(1,sizeof(struct CFRA__occasions *));
+RACH_ConfigDedicated_t *attempt1 = (RACH_ConfigDedicated_t*) malloc(sizeof(RACH_ConfigDedicated_t));
+attempt1->rach_ConfigGeneric.powerRampingStep = 2;
+attempt1->rach_ConfigGeneric.preambleReceivedTargetPower = -202; // Preamble received target power to be received from RACH-ConfigGeneric IE
+attempt1->rach_ConfigGeneric.preambleTransMax = 8;
 
-
-attempt1->cfra->occasions->rach_ConfigGeneric.powerRampingStep = 2;
-attempt1->cfra->occasions->rach_ConfigGeneric.preambleReceivedTargetPower = -202; // Preamble received target power to be received from RACH-ConfigGeneric IE
-attempt1->cfra->occasions->rach_ConfigGeneric.preambleTransMax = 8;
-
-PREAMBLE_POWER_RAMPING_STEP = attempt1->cfra->occasions->rach_ConfigGeneric.powerRampingStep; //As given in 5.1.1
+PREAMBLE_POWER_RAMPING_STEP = attempt1->rach_ConfigGeneric.powerRampingStep; //As given in 5.1.1
 e_SubcarrierSpacing subcarspacing = SubcarrierSpacing_kHz30;
 preamble_format pformat= f2;
 
 int s_id = 0;
 int t_id = 0;
 int f_id = 0;
-int ul_carrier_id = 0;
+int ul_carrier_id =0;
 int RA_RNTI = 0;
 
 RA_RNTI = preamble_transmit(pformat,
                       subcarspacing,
-                      attempt1,
+                      attempt1->rach_ConfigGeneric.preambleReceivedTargetPower,
+                      attempt1->rach_ConfigGeneric.preambleTransMax,
                       s_id,
                       t_id,
                       f_id,
