@@ -9,6 +9,23 @@ Standards 	 : TS 38.321 v15.5.0
 #include <stdio.h>
 #include<stdint.h>
 
+
+
+#define BACK_OFF_IND0           5
+#define BACK_OFF_IND1           10
+#define BACK_OFF_IND2           20
+#define BACK_OFF_IND3           30
+#define BACK_OFF_IND4           40
+#define BACK_OFF_IND5           60
+#define BACK_OFF_IND6           80
+#define BACK_OFF_IND7           120
+#define BACK_OFF_IND8           160
+#define BACK_OFF_IND9           240
+#define BACK_OFF_IND10          320
+#define BACK_OFF_IND11          480
+#define BACK_OFF_IND12          960
+#define BACK_OFF_IND13          1920
+
 /*
 Description :- MAC subheader format for DL-SCH & UL-SCH except for
                1.Fixed size MAC CE (or)
