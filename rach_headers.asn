@@ -1,0 +1,208 @@
+RACH-CONFIG-START DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+BeamFailureRecoveryConfig ::=       SEQUENCE {
+    rootSequenceIndex-BFR               INTEGER (0..137)                                                          OPTIONAL, -- Need M
+    rach-ConfigBFR                      RACH-ConfigGeneric                                                        OPTIONAL, -- Need M
+    rsrp-ThresholdSSB                   RSRP-Range                                                                OPTIONAL, -- Need M
+    candidateBeamRSList                 SEQUENCE (SIZE(1..maxNrofCandidateBeams)) OF PRACH-ResourceDedicatedBFR   OPTIONAL, -- Need M
+    ssb-perRACH-Occasion                ENUMERATED {oneEighth, oneFourth, oneHalf, one, two,
+                                                       four, eight, sixteen}                                      OPTIONAL, -- Need M
+    ra-ssb-OccasionMaskIndex            INTEGER (0..15)                                                           OPTIONAL, -- Need M
+    recoverySearchSpaceId               SearchSpaceId                                                             OPTIONAL, -- Need R
+    ra-Prioritization                   RA-Prioritization                                                         OPTIONAL, -- Need R
+    beamFailureRecoveryTimer            ENUMERATED {ms10, ms20, ms40, ms60, ms80, ms100, ms150, ms200}            OPTIONAL, -- Need M
+    ...,
+    [[
+    msg1-SubcarrierSpacing-v1530        SubcarrierSpacing                                                         OPTIONAL  -- Need M
+    ]]
+}
+
+PRACH-ResourceDedicatedBFR ::=      CHOICE {
+    ssb                                 BFR-SSB-Resource,
+    csi-RS                              BFR-CSIRS-Resource
+}
+
+BFR-SSB-Resource ::=                SEQUENCE {
+    ssb                                 SSB-Index,
+    ra-PreambleIndex                    INTEGER (0..63),
+    ...
+}
+
+BFR-CSIRS-Resource ::=              SEQUENCE {
+    csi-RS                              NZP-CSI-RS-ResourceId,
+    ra-OccasionList                     SEQUENCE (SIZE(1..maxRA-OccasionsPerCSIRS)) OF INTEGER (0..maxRA-Occasions-1)   OPTIONAL,   -- Need R
+    ra-PreambleIndex                    INTEGER (0..63)                                                                 OPTIONAL,   -- Need R
+    ...
+}
+
+SearchSpaceId ::=                   INTEGER (0..maxNrofSearchSpaces-1)
+maxNrofCandidateBeams               INTEGER ::= 16      -- Max number of PRACH-ResourceDedicatedBFR that in BFR config
+maxNrofSearchSpaces-1               INTEGER ::= 39      -- Max number of Search Spaces minus 1
+NZP-CSI-RS-ResourceId ::=           INTEGER (0..maxNrofNZP-CSI-RS-Resources-1)
+maxNrofNZP-CSI-RS-Resources-1       INTEGER ::= 191     -- Maximum number of Non-Zero-Power (NZP) CSI-RS resources minus 1
+
+RACH-ConfigDedicated ::=        SEQUENCE {
+    cfra                            CFRA                                                                    OPTIONAL, -- Need S
+    ra-Prioritization               RA-Prioritization                                                       OPTIONAL, -- Need N
+    ...
+}
+
+CFRA ::=                    SEQUENCE {
+    occasions                       SEQUENCE {
+        rach-ConfigGeneric              RACH-ConfigGeneric,
+        ssb-perRACH-Occasion            ENUMERATED {oneEighth, oneFourth, oneHalf, one, two, four, eight, sixteen}
+                                                                                                            OPTIONAL  -- Cond SSB-CFRA
+    }                                                                                                       OPTIONAL, -- Need S
+    resources                       CHOICE {
+        ssb                             SEQUENCE {
+            ssb-ResourceList                SEQUENCE (SIZE(1..maxRA-SSB-Resources)) OF CFRA-SSB-Resource,
+            ra-ssb-OccasionMaskIndex        INTEGER (0..15)
+        },
+        csirs                           SEQUENCE {
+            csirs-ResourceList              SEQUENCE (SIZE(1..maxRA-CSIRS-Resources)) OF CFRA-CSIRS-Resource,
+            rsrp-ThresholdCSI-RS            RSRP-Range
+        }
+    },
+    ...,
+    [[
+    totalNumberOfRA-Preambles-v1530 INTEGER (1..63)                                                         OPTIONAL -- Cond Occasions
+    ]]
+}
+
+
+
+CFRA-SSB-Resource ::=           SEQUENCE {
+    ssb                             SSB-Index,
+    ra-PreambleIndex                INTEGER (0..63),
+    ...
+}
+
+CFRA-CSIRS-Resource ::=         SEQUENCE {
+    csi-RS                          CSI-RS-Index,
+    ra-OccasionList                 SEQUENCE (SIZE(1..maxRA-OccasionsPerCSIRS)) OF INTEGER (0..maxRA-Occasions-1),
+    ra-PreambleIndex                INTEGER (0..63),
+    ...
+}
+
+RA-Prioritization ::=           SEQUENCE {
+    powerRampingStepHighPriority        ENUMERATED {dB0, dB2, dB4, dB6},
+    scalingFactorBI                 ENUMERATED {zero, dot25, dot5, dot75}                               OPTIONAL,   -- Need R
+    ...
+}
+
+SSB-Index ::=                       INTEGER (0..maxNrofSSBs-1)
+RSRP-Range ::=                      INTEGER(0..127)
+CSI-RS-Index ::=                    INTEGER (0..maxNrofCSI-RS-ResourcesRRM-1)
+
+maxRA-SSB-Resources                     INTEGER ::= 64
+maxRA-CSIRS-Resources                   INTEGER ::= 96
+maxNrofSSBs-1                           INTEGER ::= 63      -- Maximum number of SSB resources in a resource set minus 1.
+maxRA-OccasionsPerCSIRS                 INTEGER ::= 64      -- Maximum number of RA occasions for one CSI-RS
+maxRA-Occasions-1                       INTEGER ::= 511     -- Maximum number of RA occasions in the system
+maxNrofCSI-RS-ResourcesRRM-1            INTEGER ::= 95      -- Maximum number of CSI-RS resources for an RRM measurement object minus 1
+maxNrofSSBs 							INTEGER ::= 64 	
+maxNrofCSI-RS	 						INTEGER ::= 64
+
+RACH-ConfigCommon ::=               SEQUENCE {
+    rach-ConfigGeneric                  RACH-ConfigGeneric,
+    totalNumberOfRA-Preambles           INTEGER (1..63)                                                     OPTIONAL,   -- Need S
+    ssb-perRACH-OccasionAndCB-PreamblesPerSSB   CHOICE {
+        oneEighth                               ENUMERATED {n4,n8,n12,n16,n20,n24,n28,n32,n36,n40,n44,n48,n52,n56,n60,n64},
+        oneFourth                               ENUMERATED {n4,n8,n12,n16,n20,n24,n28,n32,n36,n40,n44,n48,n52,n56,n60,n64},
+        oneHalf                                 ENUMERATED {n4,n8,n12,n16,n20,n24,n28,n32,n36,n40,n44,n48,n52,n56,n60,n64},
+        one                                     ENUMERATED {n4,n8,n12,n16,n20,n24,n28,n32,n36,n40,n44,n48,n52,n56,n60,n64},
+        two                                     ENUMERATED {n4,n8,n12,n16,n20,n24,n28,n32},
+        four                                    INTEGER (1..16),
+        eight                                   INTEGER (1..8),
+        sixteen                                 INTEGER (1..4)
+    }                                                                                                       OPTIONAL,   -- Need M
+
+    groupBconfigured                    SEQUENCE {
+        ra-Msg3SizeGroupA                   ENUMERATED {b56, b144, b208, b256, b282, b480, b640,
+                                                        b800, b1000, b72, spare6, spare5,spare4, spare3, spare2, spare1},
+        messagePowerOffsetGroupB            ENUMERATED { minusinfinity, dB0, dB5, dB8, dB10, dB12, dB15, dB18},
+        numberOfRA-PreamblesGroupA          INTEGER (1..64)
+    }                                                                                                       OPTIONAL,   -- Need R
+    ra-ContentionResolutionTimer            ENUMERATED { sf8, sf16, sf24, sf32, sf40, sf48, sf56, sf64},
+    rsrp-ThresholdSSB                       RSRP-Range                                                      OPTIONAL,   -- Need R
+    rsrp-ThresholdSSB-SUL                   RSRP-Range                                                      OPTIONAL,   -- Cond SUL
+    prach-RootSequenceIndex                 CHOICE {
+        l839                                    INTEGER (0..837),
+        l139                                    INTEGER (0..137)
+    },
+    msg1-SubcarrierSpacing                  SubcarrierSpacing                                               OPTIONAL,   -- Cond L139
+    restrictedSetConfig                     ENUMERATED {unrestrictedSet, restrictedSetTypeA, restrictedSetTypeB},
+    msg3-transformPrecoder                  ENUMERATED {enabled}                                            OPTIONAL,   -- Need R
+    ...
+}
+
+SubcarrierSpacing ::=               ENUMERATED {kHz15, kHz30, kHz60, kHz120, kHz240, spare3, spare2, spare1}
+
+
+RACH-ConfigGeneric ::=              SEQUENCE {
+    prach-ConfigurationIndex            INTEGER (0..255),
+    msg1-FDM                            ENUMERATED {one, two, four, eight},
+    msg1-FrequencyStart                 INTEGER (0..maxNrofPhysicalResourceBlocks-1),
+    zeroCorrelationZoneConfig           INTEGER(0..15),
+    preambleReceivedTargetPower         INTEGER (-202..-60),
+    preambleTransMax                    ENUMERATED {n3, n4, n5, n6, n7, n8, n10, n20, n50, n100, n200},
+    powerRampingStep                    ENUMERATED {dB0, dB2, dB4, dB6},
+    ra-ResponseWindow                   ENUMERATED {sl1, sl2, sl4, sl8, sl10, sl20, sl40, sl80},
+    ...
+}
+
+maxNrofPhysicalResourceBlocks-1     INTEGER ::= 274
+maxSI-Message INTEGER::= 32
+
+SI-RequestConfig::=	SEQUENCE { 
+rach-OccasionsSI		SEQUENCE {
+rach-ConfigSI	RACH-ConfigGeneric,
+ssb-perRACH-Occasion	ENUMERATED {oneEighth, oneFourth, oneHalf, one, two, four, eight, sixteen}
+}											OPTIONAL,	-- Need R
+si-RequestPeriod	ENUMERATED {one, two, four, six, eight, ten, twelve, sixteen}	OPTIONAL,	-- Need R 
+si-RequestResources	SEQUENCE (SIZE (1..maxSI-Message)) OF SI-RequestResources
+}
+
+SI-RequestResources ::=	SEQUENCE {
+ra-PreambleStartIndex	INTEGER (0..63),
+ra-AssociationPeriodIndex	INTEGER (0..15)	OPTIONAL,	-- Need R
+ra-ssb-OccasionMaskIndex	INTEGER (0..15)	OPTIONAL	-- Need R
+}
+
+
+MeasQuantityResults ::= 			SEQUENCE {
+rsrp								RSRP-Range													OPTIONAL
+
+}
+MeasResultNR ::=							SEQUENCE { 
+measResult								SEQUENCE {
+
+rsIndexResults								SEQUENCE{
+resultsSSB-Indexes						ResultsPerSSB-IndexList												OPTIONAL, 
+resultsCSI-RS-Indexes						ResultsPerCSI-RS-IndexList											OPTIONAL
+}																						OPTIONAL
+
+},
+...
+}
+
+
+
+ResultsPerSSB-Index ::= 					SEQUENCE {
+ssb-Index							SSB-Index,
+ssb-Results							MeasQuantityResults							              OPTIONAL
+}
+
+ResultsPerSSB-IndexList::= 				SEQUENCE (SIZE (1..maxNrofSSBs)) OF ResultsPerSSB-Index                							
+ResultsPerCSI-RS-IndexList::= 				SEQUENCE (SIZE (1..maxNrofCSI-RS)) OF ResultsPerCSI-RS-Index
+
+ResultsPerCSI-RS-Index ::= 					SEQUENCE {
+csi-RS-Index								CSI-RS-Index,
+csi-RS-Results								MeasQuantityResults							OPTIONAL
+}
+
+
+END
+
+
+
