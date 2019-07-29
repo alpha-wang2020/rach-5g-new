@@ -1,3 +1,10 @@
+/*
+For any kind of doubts contact S PANAV KUMAR 
+Pho:8610327162
+Ad:Police Quaters,Beside IIITDM, Kandigai, Chennai, TN. 600127 
+esd15i010@iiitdm.ac.in
+*/
+
 #include <stdio.h>
 #include <unistd.h>
 #include <netinet/in.h>
@@ -28,9 +35,6 @@
 #define SA struct sockaddr 
 //#define PREAMBLE_INDEX 56
 
-//For any kind of doubts contact S PANAV KUMAR 
-//Pho:8610327162
-//Ad:Police Quaters,Beside IIITDM, Kandigai, Chennai, TN. 600127 
 uint8_t PREAMBLE_INDEX;
 uint8_t PREAMBLE_TRANSMISSION_COUNTER ;
 uint8_t PREAMBLE_POWER_RAMPING_COUNTER; 
