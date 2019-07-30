@@ -1,8 +1,5 @@
 /*
-For any kind of doubts contact S PANAV KUMAR 
-Pho:8610327162
-Ad:Police Quaters,Beside IIITDM, Kandigai, Chennai, TN. 600127 
-esd15i010@iiitdm.ac.in
+Brief :- Implementation of section 5.1.2, 5.1.3, 5.1.4 of TS 38.321, v15.5.0
 */
 
 #include <stdio.h>
