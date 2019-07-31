@@ -277,7 +277,7 @@ void get_prach_resourses(RACH_ConfigDedicated_t * rach_ConfigDedicated,
 
   else if(si_RequestConfig && rach_ConfigCommon)
   {
-    //whats this ?
+    
 
   } 
 
