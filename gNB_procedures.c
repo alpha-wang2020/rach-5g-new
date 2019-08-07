@@ -25,7 +25,7 @@ Standards    : TS 38.321 , TS 38.331 [v15.5.0 Rel 15]
 #include<errno.h>
 #define RAR_PAYLOAD_SIZE_MAX 128
 #define MAX 80 
-#define PORT 8021
+#define PORT 8001
 #define SA struct sockaddr 
 #include"RACH-ConfigDedicated.h"
 
@@ -46,7 +46,6 @@ typedef struct
 }UE_info;
 
 
-
 void preamble_tracker(UE_info *UE_list)
 {
    /*
@@ -62,6 +61,7 @@ void preamble_tracker(UE_info *UE_list)
      	//if RA procedure is successfully completed for the given UE
      	if (UE_list->ra_success_flag == 1)
      	{
+     		printf("UE_ID : %d ;  RA procedure complete \n",UE_list->C_RNTI );
      		//To indicate that the preamble index has been freed for re-use
      		preamble_flagger[i] = 0;
      	}
@@ -72,8 +72,7 @@ void preamble_tracker(UE_info *UE_list)
 
 /*========================================================================================================================*/
 
-void preamble_assigner ( int connfd, 
-						 UE_info *UE_list )
+void preamble_assigner (UE_info *UE_list )
 {
 	int preamble_index;
     int i;
@@ -166,7 +165,7 @@ unsigned short rar_fill(uint8_t * const dlsch_buffer,uint8_t preamble_index,uint
  send(sockfd, rarh1, sizeof(rarh1),0);
 
 }
-
+/*========================================================================================================================*/
 int create_socket()
 {
 	int sockfd, connfd, len; 
@@ -211,24 +210,21 @@ int create_socket()
 		exit(0); 
 	} 
 	else
-		printf("server acccept the UE_addr...\n"); 
+		printf("Server accept the UE_addr...\n"); 
 
 	return connfd;  
 }
-
+/*========================================================================================================================*/
 int main(int argc, char const *argv[])
 {
     int connfd;
 
     connfd = create_socket();
-    Max_No_of_CFRA_preambles = 10;
-     
-
-
-
-
+    UE_info UE_List[Max_No_of_CFRA_preambles];
+	UE_info *UE_list = UE_List;
+	
+    preamble_assigner(UE_list); 
 	rar_fill(RAR_pdu.payload,56,122,connfd);
-
 	close(connfd); 
 
 	
