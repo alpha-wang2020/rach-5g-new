@@ -318,7 +318,7 @@ void get_prach_resourses(RACH_ConfigDedicated_t * rach_ConfigDedicated,
 
 				else 
 				{
-					PREAMBLE_INDEX = ra_PreambleStartIndex;
+					PREAMBLE_INDEX = si_RequestConfig->si_RequestResources.list.array[cnt]->ra_PreambleStartIndex;
 				}
 			}
     
