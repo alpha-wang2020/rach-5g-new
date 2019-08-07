@@ -1,4 +1,4 @@
-# RACH_collab
+# RACH_5G_Testbed
 RA implementation - Collaborated by 4 members
 
 Present part is focused on Contention- Free Random Access Procedure
