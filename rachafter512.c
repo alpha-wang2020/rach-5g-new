@@ -44,6 +44,34 @@ typedef struct {
 }RAR_PDU;
 
 RAR_PDU RAR_pdu;
+int get_ssrsrp(int ssb_index)
+{
+  MeasResultNR_t * measResultNR ;
+
+  for(int cnt =0; cnt <(measResultNR->measResult.rsIndexResults->resultsSSB_Indexes->list.count); cnt ++)
+  {
+    if(measResultNR->measResult.rsIndexResults->resultsSSB_Indexes->list.array[cnt]->ssb_Index == ssb_index)
+    {
+      return *(measResultNR->measResult.rsIndexResults->resultsSSB_Indexes->list.array[cnt]->ssb_Results->rsrp);
+    }
+  }
+
+}
+
+int get_csirsrp(int csi_index)
+{
+  MeasResultNR_t * measResultNR ;
+
+  for(int cnt =0; cnt <(measResultNR->measResult.rsIndexResults->resultsCSI_RS_Indexes->list.count); cnt ++)
+  {
+    if(measResultNR->measResult.rsIndexResults->resultsCSI_RS_Indexes->list.array[cnt]->csi_RS_Index == csi_index)
+    {
+      return *(measResultNR->measResult.rsIndexResults->resultsCSI_RS_Indexes->list.array[cnt]->csi_RS_Results->rsrp);
+    }
+  }
+
+}
+
 
 void get_prach_resourses(RACH_ConfigDedicated_t * rach_ConfigDedicated,
              BeamFailureRecoveryConfig_t * beamfailureRecoveryConfig,
@@ -276,7 +304,23 @@ void get_prach_resourses(RACH_ConfigDedicated_t * rach_ConfigDedicated,
   }
 
   else if(si_RequestConfig && rach_ConfigCommon)
-  {
+  {	
+	  MeasResultNR_t * measResultNR;
+		//int total_SSBs = measResultNR->measResult.rsIndexResults->resultsCSI_RS_Indexes->list.count
+		for(int cnt =0; cnt <(measResultNR->measResult.rsIndexResults->resultsSSB_Indexes->list.count); cnt ++)
+			{
+				if(measResultNR->measResult.rsIndexResults->resultsSSB_Indexes->list.array[cnt]->ssb_Results->rsrp > (rach_ConfigCommon->rsrp_ThresholdSSB) )
+				{
+					int selected_ssb = measResultNR->measResult.rsIndexResults->resultsSSB_Indexes->list.array[cnt]->ssb_Index;
+
+					PREAMBLE_INDEX =  si_RequestConfig->si_RequestResources.list.array[cnt]->ra_PreambleStartIndex + cnt;
+				}
+
+				else 
+				{
+					PREAMBLE_INDEX = ra_PreambleStartIndex;
+				}
+			}
     
 
   } 
@@ -411,300 +455,8 @@ void get_prach_resourses(RACH_ConfigDedicated_t * rach_ConfigDedicated,
                             (rach_ConfigCommon->groupBconfigured->numberOfRA_PreamblesGroupA)); 
     } 
   }
-  /*
-  int oneEighth,oneFourth,oneHalf,one,two,msg1_FDM;
-  RACH_ConfigGeneric_t *rach_ConfigGeneric;
+ }
 
-  switch(rach_ConfigGeneric->msg1_FDM)
-  {
-    case 0:
-    msg1_FDM = 0;
-    break;
-
-    case 1:
-    msg1_FDM = 2;
-    break;
-
-    case 2:
-    msg1_FDM = 4;
-    break;
-    
-    case 3:
-    msg1_FDM = 8;
-    break;
-
-  }
-
-
-
-  switch(rach_ConfigCommon->ssb_perRACH_OccasionAndCB_PreamblesPerSSB->present)
-  {
-
-    case RACH_ConfigCommon__ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR_NOTHING:
-    break;
-
-    case RACH_ConfigCommon__ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR_oneEighth:
-    {
-      int freqpos = msg1_FDM ;
-
-
-      switch(rach_ConfigCommon->ssb_perRACH_OccasionAndCB_PreamblesPerSSB->choice.oneEighth)
-      {
-
-        case 0:
-        oneEighth = 4;
-            break;
-        case 1:
-        oneEighth = 8;
-            break;
-        case 2:
-        oneEighth = 12;
-            break;        
-        case 3:
-        oneEighth = 16;
-        case 4:
-        oneEighth = 20;
-        break;
-        case 5:
-        oneEighth = 24;
-        break;
-        case 6:
-        oneEighth = 28;
-        break;
-        case 7:
-        oneEighth = 32;
-        break;
-        case 8:
-        oneEighth = 36;
-        break;
-        case 9:
-        oneEighth = 40;
-        break;
-        case 10:
-        oneEighth = 44;
-        break;
-        case 11:
-        oneEighth = 48;
-        break;
-        case 12:
-        oneEighth = 52;
-        break;
-        case 13:
-        oneEighth = 56;
-        break;
-        case 14:
-        oneEighth = 60;
-        break;
-        case 15:
-        oneEighth = 64;
-        break;
-
-      }
-
-      //logic here
-
-      //int total_SSB = 
-
-
-    }
-
-    case RACH_ConfigCommon__ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR_oneFourth:
-    {
-      switch(rach_ConfigCommon->ssb_perRACH_OccasionAndCB_PreamblesPerSSB->choice.oneFourth)
-      {
-        case 0:
-        oneFourth = 4;
-        case 1:
-        oneFourth = 8;
-        case 2:
-        oneFourth = 12;
-        case 3:
-        oneFourth = 16;
-        case 4:
-        oneFourth = 20;
-        case 5:
-        oneFourth = 24;
-        case 6:
-        oneFourth = 28;
-        case 7:
-        oneFourth = 32;
-        case 8:
-        oneFourth = 36;
-        case 9:
-        oneFourth = 40;
-        case 10:
-        oneFourth = 44;
-        case 11:
-        oneFourth = 48;
-        case 12:
-        oneFourth = 52;
-        case 13:
-        oneFourth = 56;
-        case 14:
-        oneFourth = 60;
-        case 15:
-        oneFourth = 64;
-        
-      }
-
-    }
-
-    case RACH_ConfigCommon__ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR_oneHalf:
-    {
-      switch(rach_ConfigCommon->ssb_perRACH_OccasionAndCB_PreamblesPerSSB->choice.oneHalf)
-      {
-        case 0:
-        oneHalf = 4;
-        case 1:
-        oneHalf = 8;
-        case 2:
-        oneHalf = 12;
-        case 3:
-        oneHalf = 16;
-        case 4:
-        oneHalf = 20;
-        case 5:
-        oneHalf = 24;
-        case 6:
-        oneHalf = 28;
-        case 7:
-        oneHalf = 32;
-        case 8:
-        oneHalf = 36;
-        case 9:
-        oneHalf = 40;
-        case 10:
-        oneHalf = 44;
-        case 11:
-        oneHalf = 48;
-        case 12:
-        oneHalf = 52;
-        case 13:
-        oneHalf = 56;
-        case 14:
-        oneHalf = 60;
-        case 15:
-        oneHalf = 64;
-        
-      }
-
-    }
-
-    case RACH_ConfigCommon__ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR_one:
-    {
-      switch(rach_ConfigCommon->ssb_perRACH_OccasionAndCB_PreamblesPerSSB->choice.one)
-      {
-        case 0:
-        one = 4;
-        case 1:
-        one = 8;
-        case 2:
-        one = 12;
-        case 3:
-        one = 16;
-        case 4:
-        one = 20;
-        case 5:
-        one = 24;
-        case 6:
-        one = 28;
-        case 7:
-        one = 32;
-        case 8:
-        one = 36;
-        case 9:
-        one = 40;
-        case 10:
-        one = 44;
-        case 11:
-        one = 48;
-        case 12:
-        one = 52;
-        case 13:
-        one = 56;
-        case 14:
-        one = 60;
-        case 15:
-        one = 64;
-        
-      }
-
-    }
-
-    case RACH_ConfigCommon__ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR_two:
-    {
-      switch(rach_ConfigCommon->ssb_perRACH_OccasionAndCB_PreamblesPerSSB->choice.two)
-      {
-        case 0:
-        two = 4;
-        case 1:
-        two = 8;
-        case 2:
-        two = 12;
-        case 3:
-        two = 16;
-        case 4:
-        two = 20;
-        case 5:
-        two = 24;
-        case 6:
-        two = 28;
-        case 7:
-        two = 32;
-        
-        
-      }
-
-    }
-
-    case RACH_ConfigCommon__ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR_four:
-    {
-      
-
-    }
-
-    case RACH_ConfigCommon__ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR_eight:
-    {
-      
-    }
-
-    case RACH_ConfigCommon__ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR_sixteen:
-    {
-      
-
-    }
-  }
-
-  */
-}
-
-int get_ssrsrp(int ssb_index)
-{
-  MeasResultNR_t * measResultNR ;
-
-  for(int cnt =0; cnt <(measResultNR->measResult.rsIndexResults->resultsSSB_Indexes->list.count); cnt ++)
-  {
-    if(measResultNR->measResult.rsIndexResults->resultsSSB_Indexes->list.array[cnt]->ssb_Index == ssb_index)
-    {
-      return *(measResultNR->measResult.rsIndexResults->resultsSSB_Indexes->list.array[cnt]->ssb_Results->rsrp);
-    }
-  }
-
-}
-
-int get_csirsrp(int csi_index)
-{
-  MeasResultNR_t * measResultNR ;
-
-  for(int cnt =0; cnt <(measResultNR->measResult.rsIndexResults->resultsCSI_RS_Indexes->list.count); cnt ++)
-  {
-    if(measResultNR->measResult.rsIndexResults->resultsCSI_RS_Indexes->list.array[cnt]->csi_RS_Index == csi_index)
-    {
-      return *(measResultNR->measResult.rsIndexResults->resultsCSI_RS_Indexes->list.array[cnt]->csi_RS_Results->rsrp);
-    }
-  }
-
-}
 
 typedef enum {
         f0,
