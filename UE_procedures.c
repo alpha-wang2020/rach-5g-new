@@ -1,3 +1,12 @@
+
+/*==============================================================
+Title        : Implementation of Random Access procedure in UE
+Project      : L2 protocol stack development for 5G Testbed project
+Organization : IIT Madras
+Authors      : RACH team
+Standards    : TS 38.321 , TS 38.331 [v15.5.0 Rel 15]
+================================================================*/
+
 /*
 Brief :- Implementation of section 5.1.2, 5.1.3, 5.1.4 of TS 38.321, v15.5.0
 */
@@ -32,6 +41,8 @@ Brief :- Implementation of section 5.1.2, 5.1.3, 5.1.4 of TS 38.321, v15.5.0
 #define PORT 8021
 #define SA struct sockaddr 
 //#define PREAMBLE_INDEX 56
+
+BeamFailureRecoveryConfig_t *BFRC;
 
 uint8_t PREAMBLE_INDEX;
 uint8_t PREAMBLE_TRANSMISSION_COUNTER ;
@@ -593,8 +604,8 @@ void rar_reception(int sockfd)
 
 
 
-	printf("%02x\n",rarh->RAPID);
- printf("Received RAR (%02x|%02x.%02x.%02x.%02x.%02x.%02x.%02x) for preamble %d\n",
+  printf("%02x\n",rarh->RAPID);
+  printf("Received RAR (%02x|%02x.%02x.%02x.%02x.%02x.%02x.%02x) for preamble %d\n",
           *(uint8_t *) rarh, rar[0], rar[1], rar[2],
           rar[3], rar[4], rar[5], rar[6], rarh->RAPID);
 
@@ -642,9 +653,17 @@ if (1) // DOWNLINK ASSIGNMENT RA-RNTI
    printf("decoded RAR- TAC:%d\n Hopping  flag:%d\n PUSCH_Freq:%d\n PUSCH_Time:%d\n  MCS:%d\n TPC:%d\n CSI:%d\n T_CRNTI:%d\n", mac_pdu.mac_rar_rapid.mac_rar.TAC,mac_pdu.mac_rar_rapid.mac_rar.H_Hopping_Flag,
    mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Freq,mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Time,mac_pdu.mac_rar_rapid.mac_rar.MCS, mac_pdu.mac_rar_rapid.mac_rar.TPC,mac_pdu.mac_rar_rapid.mac_rar.CSI_Request,mac_pdu.mac_rar_rapid.mac_rar.T_CRNTI);
 
-  // MAC subPDU with BI
+  }// MAC subPDU with BI
    int SCALING_FACTOR_BI;
-    switch(*(BFRC->ra_Prioritization->scalingFactorBI)){
+   //   BFRC->ra_Prioritization->scalingFactorBI has to be actually received from gNB
+   //   if the structure pointer(BFRC) is received properly,then segmentation fault won't come 
+   //   when accessing BFRC->ra_Prioritization->scalingFactorBI
+   //  Temporarily assuming a long varaiable and using the value
+   long scaling_Factor_BI = 0;
+   BFRC->ra_Prioritization->scalingFactorBI = &scaling_Factor_BI;
+
+    switch(*(BFRC->ra_Prioritization->scalingFactorBI))
+     {
     case 0 /*RA_Prioritization__scalingFactorBI_zero*/: SCALING_FACTOR_BI = 0;
       break;
     case 1/*RA_Prioritization__scalingFactorBI_dot25*/:SCALING_FACTOR_BI = 0.25;
@@ -656,46 +675,47 @@ if (1) // DOWNLINK ASSIGNMENT RA-RNTI
     }
 
     if(mac_pdu.ra_subheader_bi.T==0 || mac_pdu.ra_subheader_rapid.T==0 || mac_pdu.mac_rar_rapid.ra_subheader_rapid.T==0) // backoff field in the subheader if T bit is "0"
-  { 
+    { 
 
-    switch(mac_pdu.ra_subheader_bi.BI){ 
-      case 0: PREAMBLE_BACKOFF=BACK_OFF_IND0*SCALING_FACTOR_BI;
-        break;  
-      case 1: PREAMBLE_BACKOFF=BACK_OFF_IND1*SCALING_FACTOR_BI;
-        break;  
-      case 2: PREAMBLE_BACKOFF=BACK_OFF_IND2*SCALING_FACTOR_BI;
-        break;
-      case 3: PREAMBLE_BACKOFF=BACK_OFF_IND3*SCALING_FACTOR_BI;
-        break;
-      case 4: PREAMBLE_BACKOFF=BACK_OFF_IND4*SCALING_FACTOR_BI;
-        break;
-      case 5: PREAMBLE_BACKOFF=BACK_OFF_IND5*SCALING_FACTOR_BI;
-        break;
-      case 6: PREAMBLE_BACKOFF=BACK_OFF_IND6*SCALING_FACTOR_BI;
-        break;
-      case 7: PREAMBLE_BACKOFF=BACK_OFF_IND7*SCALING_FACTOR_BI;
-        break;
-      case 8: PREAMBLE_BACKOFF=BACK_OFF_IND8*SCALING_FACTOR_BI;
-        break;    
-      case 9: PREAMBLE_BACKOFF=BACK_OFF_IND9*SCALING_FACTOR_BI;
-        break;    
-      case 10:PREAMBLE_BACKOFF=BACK_OFF_IND10*SCALING_FACTOR_BI;
-        break;    
-      case 11: PREAMBLE_BACKOFF=BACK_OFF_IND11*SCALING_FACTOR_BI;
-        break;    
-      case 12: PREAMBLE_BACKOFF=BACK_OFF_IND12*SCALING_FACTOR_BI;
-        break;    
-      case 13: PREAMBLE_BACKOFF=BACK_OFF_IND13*SCALING_FACTOR_BI;
-        break;
-  // case 14 and 15 reserved value. (?)
+      switch(mac_pdu.ra_subheader_bi.BI)
+      { 
+        case 0: PREAMBLE_BACKOFF=BACK_OFF_IND0*SCALING_FACTOR_BI;
+          break;  
+        case 1: PREAMBLE_BACKOFF=BACK_OFF_IND1*SCALING_FACTOR_BI;
+          break;  
+        case 2: PREAMBLE_BACKOFF=BACK_OFF_IND2*SCALING_FACTOR_BI;
+          break;
+        case 3: PREAMBLE_BACKOFF=BACK_OFF_IND3*SCALING_FACTOR_BI;
+          break;
+        case 4: PREAMBLE_BACKOFF=BACK_OFF_IND4*SCALING_FACTOR_BI;
+          break;
+        case 5: PREAMBLE_BACKOFF=BACK_OFF_IND5*SCALING_FACTOR_BI;
+          break;
+        case 6: PREAMBLE_BACKOFF=BACK_OFF_IND6*SCALING_FACTOR_BI;
+          break;
+        case 7: PREAMBLE_BACKOFF=BACK_OFF_IND7*SCALING_FACTOR_BI;
+          break;
+        case 8: PREAMBLE_BACKOFF=BACK_OFF_IND8*SCALING_FACTOR_BI;
+          break;    
+        case 9: PREAMBLE_BACKOFF=BACK_OFF_IND9*SCALING_FACTOR_BI;
+          break;    
+        case 10:PREAMBLE_BACKOFF=BACK_OFF_IND10*SCALING_FACTOR_BI;
+          break;    
+        case 11: PREAMBLE_BACKOFF=BACK_OFF_IND11*SCALING_FACTOR_BI;
+          break;    
+        case 12: PREAMBLE_BACKOFF=BACK_OFF_IND12*SCALING_FACTOR_BI;
+          break;    
+        case 13: PREAMBLE_BACKOFF=BACK_OFF_IND13*SCALING_FACTOR_BI;
+          break;
+        // case 14 and 15 reserved value. (?)
       }
-        printf("%d\n",PREAMBLE_BACKOFF );
-  }
-  else 
-  {
-    PREAMBLE_BACKOFF=0;
-    printf("%d\n",PREAMBLE_BACKOFF );
-  }
+          printf("%d\n",PREAMBLE_BACKOFF );
+    }
+    else 
+    {
+      PREAMBLE_BACKOFF=0;
+      printf("The preamble backoff is :%d\n",PREAMBLE_BACKOFF );
+    }
   
 
 
@@ -742,7 +762,7 @@ if (1) // DOWNLINK ASSIGNMENT RA-RNTI
       }
     }
   }  
-
+   
   return;
 } 
 
@@ -786,7 +806,8 @@ int sockfd;
 MAC_PDU_RAR m_pdu;
 
 sockfd = create_socket();
-
+BFRC = (BeamFailureRecoveryConfig_t *) calloc(1,sizeof(BeamFailureRecoveryConfig_t)) ;
+BFRC->ra_Prioritization = (struct RA_Prioritization*) calloc(1,sizeof(struct RA_Prioritization));
    
 RACH_ConfigDedicated_t *attempt1 = (RACH_ConfigDedicated_t*) calloc(1,sizeof(RACH_ConfigDedicated_t));
 attempt1->cfra = (CFRA_t *) calloc(1,sizeof(CFRA_t *));
