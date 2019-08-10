@@ -32,8 +32,47 @@ The 2 most important programs are :
 `gNB_procedures.c` - Contains the random access procedures to be done at gNB. This program is modeled as a server program
 `UE_procedures.c` - Contains the random access procedures to be done at UE. This program is modeled as a client program
 ### Running the server program
-Compile the program  
+Once the server program is compiled and executed, the output is : 
+```
+Socket successfully created..
+Socket successfully binded..
+Server listening..
+```
+Now the server is listening for a client program to connect.
 
+### Running the client program
+Once the client program is compiled and executed, the output is : 
+```
+Socket successfully created..
+connected to the server..
+RA-RNTI is: 32767 
+38
+Received RAR (e0|01.84.07.c4.29.01.2c) for preamble 56
+TB decoded successfully
+decoded header- E,T,RAPID, (0 | 0| 56)
+decoded RAR- TAC:48
+ Hopping  flag:1
+ PUSCH_Freq:124
+ PUSCH_Time:4
+  MCS:2
+ TPC:4
+ CSI:1
+ T_CRNTI:300
+-202
+```
+
+The client side output displays various parameters of the Random Access Response (RAR) received from gNB, with a log message indicating that the transport block has been decoded successfully.
+
+The corresponding output at the server is :
+```
+Server accept the UE_addr...
+38
+Received RAR (e0|01.84.07.c4.29.01.2c) for preamble 56/56
+```
+The above data is the actual data transmitted by gNB to UE.
+
+### Remarks
+The current outputs have clearly focussed on transmission and reception of RAR. In further updates, the subsequent steps shall be explained in detail.
 
 ## Authors
 
