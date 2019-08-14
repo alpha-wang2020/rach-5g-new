@@ -53,7 +53,7 @@ int DELTA_PREAMBLE;
 int F_ACKSI_request =0;   // to be sent to upper layer
 uint16_t PHY_BUF[UL_GRANT_FIELDS_MAX];  // to be sent to lower layer
 //e_RA_Prioritization__scalingFactorBI s = RA_Prioritization__scalingFactorBI_dot5;  // configured by RRC
-int F_SI_PREAMBLE = 0; // flag indicating preamble configured for SI-request
+int F_SI_PREAMBLE = 1; // flag indicating preamble configured for SI-request
 
 typedef struct {
     uint8_t payload[RAR_PAYLOAD_SIZE_MAX];
@@ -469,8 +469,9 @@ void get_prach_resourses(RACH_ConfigDedicated_t * rach_ConfigDedicated,
     }
     else
     {
-      PREAMBLE_INDEX = rand()%(*(rach_ConfigCommon->totalNumberOfRA_Preambles) -
-                            (rach_ConfigCommon->groupBconfigured->numberOfRA_PreamblesGroupA)); 
+      PREAMBLE_INDEX = rand()%(*(rach_ConfigCommon->totalNumberOfRA_Preambles) - (rach_ConfigCommon->rsrp_ThresholdSSB) )
+        {
+                            (rach_ConfigCommon->groupBconfigured->numberOfRA_PreamblesGroupA); 
     } 
   }
  }
@@ -585,9 +586,16 @@ int preamble_transmit(preamble_format format,
 /*=================================================================================================================*/
 
 
-void rar_reception(int sockfd) 
+void rar_reception(int sockfd, clock_t t_preamblesent) 
 { 	
-	
+	int ra_responsewindow = 11; // assuming s11 (slots) is configured by rrc in rach_configcommon
+  int ra_respwindow = 0.5*ra_responsewindow; // in milliseconds assuming 30kHz sub-carrier spacing
+  clock_t t_rar ;            // timer to indicate the reception of RAR
+  int rar_reception=0;      // flag to indicate whether rar_reception is success or failure
+
+  
+
+
   int PREAMBLE_BACKOFF;
   uint16_t TEMPORARY_CRNTI;
 
@@ -602,6 +610,7 @@ void rar_reception(int sockfd)
 	recv(sockfd,rar,sizeof(rar),0);
   recv(sockfd,rarh1,sizeof(rarh1),0);
 
+  t_rar=clock();   // time instant where i receive RAR
 
 
   printf("%02x\n",rarh->RAPID);
@@ -626,10 +635,10 @@ if (1) // DOWNLINK ASSIGNMENT RA-RNTI
   mac_pdu.mac_rar_rapid.ra_subheader_rapid.T    =rarh->T;
   mac_pdu.mac_rar_rapid.ra_subheader_rapid.RAPID  =rarh->RAPID;
 
-   // RAPID only
-  /*mac_pdu.ra_subheader_rapid.E    =rarh->E;
+   //RAPID only
+  mac_pdu.ra_subheader_rapid.E    =rarh->E;
   mac_pdu.ra_subheader_rapid.T    =rarh->T;
-  mac_pdu.ra_subheader_rapid.RAPID  =rarh->RAPID;*/
+  mac_pdu.ra_subheader_rapid.RAPID  =rarh->RAPID;
 
   //TAC
   mac_pdu.mac_rar_rapid.mac_rar.TAC       = (uint16_t)(rar[0]<<5);
@@ -653,7 +662,7 @@ if (1) // DOWNLINK ASSIGNMENT RA-RNTI
    printf("decoded RAR- TAC:%d\n Hopping  flag:%d\n PUSCH_Freq:%d\n PUSCH_Time:%d\n  MCS:%d\n TPC:%d\n CSI:%d\n T_CRNTI:%d\n", mac_pdu.mac_rar_rapid.mac_rar.TAC,mac_pdu.mac_rar_rapid.mac_rar.H_Hopping_Flag,
    mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Freq,mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Time,mac_pdu.mac_rar_rapid.mac_rar.MCS, mac_pdu.mac_rar_rapid.mac_rar.TPC,mac_pdu.mac_rar_rapid.mac_rar.CSI_Request,mac_pdu.mac_rar_rapid.mac_rar.T_CRNTI);
 
-  }// MAC subPDU with BI
+  }
    int SCALING_FACTOR_BI;
    //   BFRC->ra_Prioritization->scalingFactorBI has to be actually received from gNB
    //   if the structure pointer(BFRC) is received properly,then segmentation fault won't come 
@@ -709,12 +718,12 @@ if (1) // DOWNLINK ASSIGNMENT RA-RNTI
           break;
         // case 14 and 15 reserved value. (?)
       }
-          printf("%d\n",PREAMBLE_BACKOFF );
+          //printf("%d\n",PREAMBLE_BACKOFF );
     }
     else 
     {
       PREAMBLE_BACKOFF=0;
-      printf("The preamble backoff is :%d\n",PREAMBLE_BACKOFF );
+      //printf("The preamble backoff is :%d\n",PREAMBLE_BACKOFF );
     }
   
 
@@ -724,6 +733,7 @@ if (1) // DOWNLINK ASSIGNMENT RA-RNTI
   if(mac_pdu.ra_subheader_rapid.RAPID == PREAMBLE_INDEX || mac_pdu.mac_rar_rapid.ra_subheader_rapid.RAPID == PREAMBLE_INDEX)
   {
     printf("RAR reception successful\n");
+    rar_reception=1;
     
     if(mac_pdu.ra_subheader_rapid.T ==1 && (F_SI_PREAMBLE==1))// checks if the random preamble is si_requestconfig)// to check if only RAPID subheader is present.
     {
@@ -762,6 +772,16 @@ if (1) // DOWNLINK ASSIGNMENT RA-RNTI
       }
     }
   }  
+
+
+/*******************************ra_response window expires***********************************************************/
+  if ((t_rar > t_preamblesent + ra_respwindow) && rar_reception!=1)
+  {
+      printf("RA_WINDOW EXPIRED, RAR NOT RECEIVED");
+  }
+
+
+
    
   return;
 } 
@@ -802,6 +822,7 @@ int main(int argc, char const *argv[])
     
 int sockfd;
   //SI_RequestConfig_t *si_reqconfig=NULL;
+clock_t t_preamblesent;
   
 MAC_PDU_RAR m_pdu;
 
@@ -840,6 +861,11 @@ RA_RNTI = preamble_transmit(pformat,
 // Yet to know what 5.1.3 (UE) has to send to 5.1.4(gNB)
 
 
-rar_reception(sockfd); 
+// send preamble
+// timer after preamble is just sent. 
+t_preamblesent=clock();
+
+
+rar_reception(sockfd,t_preamblesent); 
 return 0;
 }

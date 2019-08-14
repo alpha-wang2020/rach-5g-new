@@ -25,7 +25,7 @@ Standards    : TS 38.321 , TS 38.331 [v15.5.0 Rel 15]
 #include<errno.h>
 #define RAR_PAYLOAD_SIZE_MAX 128
 #define MAX 80 
-#define PORT 8001
+#define PORT 8021
 #define SA struct sockaddr 
 #include"RACH-ConfigDedicated.h"
 
@@ -117,13 +117,13 @@ unsigned short rar_fill(uint8_t * const dlsch_buffer,uint8_t preamble_index,uint
 	
 	
 	rarh1->E = 0;
-	rarh1->T = 0;
+	rarh1->T = 1;
 	rarh1->BI = 2;
 
 
 
 	rarh->E = 0;
-	rarh->T = 0;
+	rarh->T = 1;
 	rarh->RAPID = preamble_index;
 
 
