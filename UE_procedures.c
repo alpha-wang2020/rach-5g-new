@@ -38,13 +38,13 @@ Brief :- Implementation of section 5.1.2, 5.1.3, 5.1.4 of TS 38.321, v15.5.0
 #define RAR_PAYLOAD_SIZE_MAX 128
 #define UL_GRANT_FIELDS_MAX 6
 #define MAX 80 
-#define PORT 8021
+#define PORT 8002
 #define SA struct sockaddr 
-//#define PREAMBLE_INDEX 56
+
 
 BeamFailureRecoveryConfig_t *BFRC;
 
-uint8_t PREAMBLE_INDEX;
+uint8_t PREAMBLE_INDEX=36;
 uint8_t PREAMBLE_TRANSMISSION_COUNTER ;
 uint8_t PREAMBLE_POWER_RAMPING_COUNTER; 
 uint8_t PREAMBLE_POWER_RAMPING_STEP ;
@@ -53,7 +53,42 @@ int DELTA_PREAMBLE;
 int F_ACKSI_request =0;   // to be sent to upper layer
 uint16_t PHY_BUF[UL_GRANT_FIELDS_MAX];  // to be sent to lower layer
 //e_RA_Prioritization__scalingFactorBI s = RA_Prioritization__scalingFactorBI_dot5;  // configured by RRC
-int F_SI_PREAMBLE = 1; // flag indicating preamble configured for SI-request
+int F_SI_PREAMBLE = 0; // flag indicating preamble configured for SI-request
+
+
+int uniform_distribution(int rangeLow, int rangeHigh)
+{
+    int myRand = (int)rand(); 
+    int range = rangeHigh - rangeLow + 1; //+1 makes it [rangeLow, rangeHigh], inclusive.
+    int myRand_scaled = (myRand % range) + rangeLow;
+    return myRand_scaled;
+}
+
+
+
+
+void setTimeout(int milliseconds)
+{
+    // If milliseconds is less or equal to 0
+    // will be simple return from function without throw error
+    if (milliseconds <= 0) {
+        fprintf(stderr, "Count milliseconds for timeout is less or equal to 0\n");
+        return;
+    }
+
+    // a current time of milliseconds
+    int milliseconds_since = clock() * 1000 / CLOCKS_PER_SEC;
+
+    // needed count milliseconds of return from this timeout
+    int end = milliseconds_since + milliseconds;
+
+    // wait while until needed time comes
+    do {
+        milliseconds_since = clock() * 1000 / CLOCKS_PER_SEC;
+    } while (milliseconds_since <= end);
+}
+
+
 
 typedef struct {
     uint8_t payload[RAR_PAYLOAD_SIZE_MAX];
@@ -469,9 +504,8 @@ void get_prach_resourses(RACH_ConfigDedicated_t * rach_ConfigDedicated,
     }
     else
     {
-      PREAMBLE_INDEX = rand()%(*(rach_ConfigCommon->totalNumberOfRA_Preambles) - (rach_ConfigCommon->rsrp_ThresholdSSB) )
-        {
-                            (rach_ConfigCommon->groupBconfigured->numberOfRA_PreamblesGroupA); 
+      PREAMBLE_INDEX = rand()%(*(rach_ConfigCommon->totalNumberOfRA_Preambles) -
+                            (rach_ConfigCommon->groupBconfigured->numberOfRA_PreamblesGroupA)); 
     } 
   }
  }
@@ -586,205 +620,222 @@ int preamble_transmit(preamble_format format,
 /*=================================================================================================================*/
 
 
-void rar_reception(int sockfd, clock_t t_preamblesent) 
+void rar_reception(int sockfd, int time,RACH_ConfigDedicated_t *attempt1) 
 { 	
-	int ra_responsewindow = 11; // assuming s11 (slots) is configured by rrc in rach_configcommon
-  int ra_respwindow = 0.5*ra_responsewindow; // in milliseconds assuming 30kHz sub-carrier spacing
-  clock_t t_rar ;            // timer to indicate the reception of RAR
-  int rar_reception=0;      // flag to indicate whether rar_reception is success or failure
-
+	int t_1,T_a,backoff_time;
+  clock_t T,t_A;
+  int f_rarecept=0;
   
-
-
   int PREAMBLE_BACKOFF;
   uint16_t TEMPORARY_CRNTI;
+
+  int ra_responsewindow = 11; // assuming s11 configured by rrc
+  int ra_resptime= 11*0.5; // assuming 30kHz subcarrier spacing each slot is 0.5 ms
 
   RA_SUBHEADER_RAPID *rarh = (RA_SUBHEADER_RAPID*) RAR_pdu.payload;
   RA_SUBHEADER_BI *rarh1 = (RA_SUBHEADER_BI*) RAR_pdu.payload;
   MAC_PDU_RAR mac_pdu;
 	uint8_t *rar = (uint8_t*) (RAR_pdu.payload +1);
   
- 
-	recv(sockfd, rarh, sizeof(rarh),0);
-
-	recv(sockfd,rar,sizeof(rar),0);
-  recv(sockfd,rarh1,sizeof(rarh1),0);
-
-  t_rar=clock();   // time instant where i receive RAR
-
-
-  printf("%02x\n",rarh->RAPID);
-  printf("Received RAR (%02x|%02x.%02x.%02x.%02x.%02x.%02x.%02x) for preamble %d\n",
-          *(uint8_t *) rarh, rar[0], rar[1], rar[2],
-          rar[3], rar[4], rar[5], rar[6], rarh->RAPID);
-
-if (1) // DOWNLINK ASSIGNMENT RA-RNTI
-{
   
+  while(1)
+  {
 
-  //BI
-  mac_pdu.ra_subheader_bi.T = rarh1->T;
-  mac_pdu.ra_subheader_bi.E = rarh1->E;
-  mac_pdu.ra_subheader_bi.BI = rarh1->BI;
+        T=clock();
+    
+        t_1=T*1000/CLOCKS_PER_SEC;
+        printf("Timer:%d\n  ",t_1 );
+        
+        if (t_1<=time+ra_resptime)   // procedures to be done within ra-response window
+        {
+          recv(sockfd, rarh, sizeof(rarh),0);
+          recv(sockfd,rar,sizeof(rar),0);
+          recv(sockfd,rarh1,sizeof(rarh1),0);
+          
+                   
+          mac_pdu.ra_subheader_bi.T = rarh1->T;
+          mac_pdu.ra_subheader_bi.E = rarh1->E;
+          mac_pdu.ra_subheader_bi.BI = rarh1->BI;
 
 
 
 
-  // RAPID + RAR (header)
-  mac_pdu.mac_rar_rapid.ra_subheader_rapid.E    =rarh->E;
-  mac_pdu.mac_rar_rapid.ra_subheader_rapid.T    =rarh->T;
-  mac_pdu.mac_rar_rapid.ra_subheader_rapid.RAPID  =rarh->RAPID;
+            // RAPID + RAR (header)
+          mac_pdu.mac_rar_rapid.ra_subheader_rapid.E    =rarh->E;
+          mac_pdu.mac_rar_rapid.ra_subheader_rapid.T    =rarh->T;
+          mac_pdu.mac_rar_rapid.ra_subheader_rapid.RAPID  =rarh->RAPID;
 
-   //RAPID only
-  mac_pdu.ra_subheader_rapid.E    =rarh->E;
-  mac_pdu.ra_subheader_rapid.T    =rarh->T;
-  mac_pdu.ra_subheader_rapid.RAPID  =rarh->RAPID;
+            // RAPID only
+            /*mac_pdu.ra_subheader_rapid.E    =rarh->E;
+            mac_pdu.ra_subheader_rapid.T    =rarh->T;
+            mac_pdu.ra_subheader_rapid.RAPID  =rarh->RAPID;*/
 
   //TAC
-  mac_pdu.mac_rar_rapid.mac_rar.TAC       = (uint16_t)(rar[0]<<5);
-  mac_pdu.mac_rar_rapid.mac_rar.TAC       |=  (uint16_t)(rar[1] & 0xf8) >> 3;
+          mac_pdu.mac_rar_rapid.mac_rar.TAC       = (uint16_t)(rar[0]<<5);
+          mac_pdu.mac_rar_rapid.mac_rar.TAC       |=  (uint16_t)(rar[1] & 0xf8) >> 3;
 
   //UL-GRANT
-   mac_pdu.mac_rar_rapid.mac_rar.H_Hopping_Flag  =   (uint16_t)(rar[1] & 0x04) >> 2;
-   mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Freq    =   (uint16_t)(rar[1] & 0x03) << 12;
-   mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Freq    |=  (uint16_t)(rar[2] << 4);
-   mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Freq    |=  (uint16_t)(rar[3] & 0xf0) >> 4;
-   mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Time    = (uint16_t)(rar[3] & 0x0f); 
-   mac_pdu.mac_rar_rapid.mac_rar.MCS       = (uint16_t)(rar[4] & 0xf0) >> 4;
-   mac_pdu.mac_rar_rapid.mac_rar.TPC       =   (uint16_t)(rar[4] & 0x0e) >> 1; 
-   mac_pdu.mac_rar_rapid.mac_rar.CSI_Request   = (uint16_t)(rar[4] & 0x01);
+          mac_pdu.mac_rar_rapid.mac_rar.H_Hopping_Flag  =   (uint16_t)(rar[1] & 0x04) >> 2;
+          mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Freq    =   (uint16_t)(rar[1] & 0x03) << 12;
+          mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Freq    |=  (uint16_t)(rar[2] << 4);
+          mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Freq    |=  (uint16_t)(rar[3] & 0xf0) >> 4;
+          mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Time    = (uint16_t)(rar[3] & 0x0f); 
+          mac_pdu.mac_rar_rapid.mac_rar.MCS       = (uint16_t)(rar[4] & 0xf0) >> 4;
+          mac_pdu.mac_rar_rapid.mac_rar.TPC       =   (uint16_t)(rar[4] & 0x0e) >> 1; 
+          mac_pdu.mac_rar_rapid.mac_rar.CSI_Request   = (uint16_t)(rar[4] & 0x01);
 
    //temporary CRNTI
-   mac_pdu.mac_rar_rapid.mac_rar.T_CRNTI     = (uint16_t)(rar[5]<<8); 
-   mac_pdu.mac_rar_rapid.mac_rar.T_CRNTI     |= (uint16_t)(rar[6]);
-   printf("TB decoded successfully\n");
-   printf("decoded header- E,T,RAPID, (%d | %d| %d)\n", mac_pdu.mac_rar_rapid.ra_subheader_rapid.E, mac_pdu.mac_rar_rapid.ra_subheader_rapid.T , mac_pdu.mac_rar_rapid.ra_subheader_rapid.RAPID);
-   printf("decoded RAR- TAC:%d\n Hopping  flag:%d\n PUSCH_Freq:%d\n PUSCH_Time:%d\n  MCS:%d\n TPC:%d\n CSI:%d\n T_CRNTI:%d\n", mac_pdu.mac_rar_rapid.mac_rar.TAC,mac_pdu.mac_rar_rapid.mac_rar.H_Hopping_Flag,
-   mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Freq,mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Time,mac_pdu.mac_rar_rapid.mac_rar.MCS, mac_pdu.mac_rar_rapid.mac_rar.TPC,mac_pdu.mac_rar_rapid.mac_rar.CSI_Request,mac_pdu.mac_rar_rapid.mac_rar.T_CRNTI);
-
-  }
-   int SCALING_FACTOR_BI;
+          mac_pdu.mac_rar_rapid.mac_rar.T_CRNTI     = (uint16_t)(rar[5]<<8); 
+          mac_pdu.mac_rar_rapid.mac_rar.T_CRNTI     |= (uint16_t)(rar[6]);
+          //printf("TB decoded successfully\n");
+          //printf("decoded header- E,T,RAPID, (%d | %d| %d)\n", mac_pdu.mac_rar_rapid.ra_subheader_rapid.E, mac_pdu.mac_rar_rapid.ra_subheader_rapid.T , mac_pdu.mac_rar_rapid.ra_subheader_rapid.RAPID);
+          
+  // MAC subPDU with BI
+          int SCALING_FACTOR_BI;
    //   BFRC->ra_Prioritization->scalingFactorBI has to be actually received from gNB
    //   if the structure pointer(BFRC) is received properly,then segmentation fault won't come 
    //   when accessing BFRC->ra_Prioritization->scalingFactorBI
    //  Temporarily assuming a long varaiable and using the value
-   long scaling_Factor_BI = 0;
-   BFRC->ra_Prioritization->scalingFactorBI = &scaling_Factor_BI;
+          long scaling_Factor_BI = 0;
+          BFRC->ra_Prioritization->scalingFactorBI = &scaling_Factor_BI;
 
-    switch(*(BFRC->ra_Prioritization->scalingFactorBI))
-     {
-    case 0 /*RA_Prioritization__scalingFactorBI_zero*/: SCALING_FACTOR_BI = 0;
-      break;
-    case 1/*RA_Prioritization__scalingFactorBI_dot25*/:SCALING_FACTOR_BI = 0.25;
-      break;
-    case 2 /*RA_Prioritization__scalingFactorBI_dot5*/: SCALING_FACTOR_BI = 0.5;
-      break;
-    case 3/*RA_Prioritization__scalingFactorBI_dot75*/: SCALING_FACTOR_BI = 0.75;
-      break;
-    }
+          switch(*(BFRC->ra_Prioritization->scalingFactorBI))
+          {
+            case 0 /*RA_Prioritization__scalingFactorBI_zero*/: SCALING_FACTOR_BI = 0;
+            break;
+            case 1/*RA_Prioritization__scalingFactorBI_dot25*/:SCALING_FACTOR_BI = 0.25;
+            break;
+            case 2 /*RA_Prioritization__scalingFactorBI_dot5*/: SCALING_FACTOR_BI = 0.5;
+            break;
+            case 3/*RA_Prioritization__scalingFactorBI_dot75*/: SCALING_FACTOR_BI = 0.75;
+            break;
+          }
 
-    if(mac_pdu.ra_subheader_bi.T==0 || mac_pdu.ra_subheader_rapid.T==0 || mac_pdu.mac_rar_rapid.ra_subheader_rapid.T==0) // backoff field in the subheader if T bit is "0"
-    { 
+          if(mac_pdu.ra_subheader_bi.T==0 || mac_pdu.ra_subheader_rapid.T==0 || mac_pdu.mac_rar_rapid.ra_subheader_rapid.T==0) // backoff field in the subheader if T bit is "0"
+          { 
 
-      switch(mac_pdu.ra_subheader_bi.BI)
-      { 
-        case 0: PREAMBLE_BACKOFF=BACK_OFF_IND0*SCALING_FACTOR_BI;
-          break;  
-        case 1: PREAMBLE_BACKOFF=BACK_OFF_IND1*SCALING_FACTOR_BI;
-          break;  
-        case 2: PREAMBLE_BACKOFF=BACK_OFF_IND2*SCALING_FACTOR_BI;
-          break;
-        case 3: PREAMBLE_BACKOFF=BACK_OFF_IND3*SCALING_FACTOR_BI;
-          break;
-        case 4: PREAMBLE_BACKOFF=BACK_OFF_IND4*SCALING_FACTOR_BI;
-          break;
-        case 5: PREAMBLE_BACKOFF=BACK_OFF_IND5*SCALING_FACTOR_BI;
-          break;
-        case 6: PREAMBLE_BACKOFF=BACK_OFF_IND6*SCALING_FACTOR_BI;
-          break;
-        case 7: PREAMBLE_BACKOFF=BACK_OFF_IND7*SCALING_FACTOR_BI;
-          break;
-        case 8: PREAMBLE_BACKOFF=BACK_OFF_IND8*SCALING_FACTOR_BI;
-          break;    
-        case 9: PREAMBLE_BACKOFF=BACK_OFF_IND9*SCALING_FACTOR_BI;
-          break;    
-        case 10:PREAMBLE_BACKOFF=BACK_OFF_IND10*SCALING_FACTOR_BI;
-          break;    
-        case 11: PREAMBLE_BACKOFF=BACK_OFF_IND11*SCALING_FACTOR_BI;
-          break;    
-        case 12: PREAMBLE_BACKOFF=BACK_OFF_IND12*SCALING_FACTOR_BI;
-          break;    
-        case 13: PREAMBLE_BACKOFF=BACK_OFF_IND13*SCALING_FACTOR_BI;
-          break;
-        // case 14 and 15 reserved value. (?)
-      }
-          //printf("%d\n",PREAMBLE_BACKOFF );
-    }
-    else 
-    {
-      PREAMBLE_BACKOFF=0;
-      //printf("The preamble backoff is :%d\n",PREAMBLE_BACKOFF );
-    }
+            switch(mac_pdu.ra_subheader_bi.BI)
+            { 
+              case 0: PREAMBLE_BACKOFF=BACK_OFF_IND0*SCALING_FACTOR_BI;
+              break;  
+              case 1: PREAMBLE_BACKOFF=BACK_OFF_IND1*SCALING_FACTOR_BI;
+                break;  
+              case 2: PREAMBLE_BACKOFF=BACK_OFF_IND2*SCALING_FACTOR_BI;
+                break;
+              case 3: PREAMBLE_BACKOFF=BACK_OFF_IND3*SCALING_FACTOR_BI;
+                break;
+              case 4: PREAMBLE_BACKOFF=BACK_OFF_IND4*SCALING_FACTOR_BI;
+                break;
+              case 5: PREAMBLE_BACKOFF=BACK_OFF_IND5*SCALING_FACTOR_BI;
+                break;
+              case 6: PREAMBLE_BACKOFF=BACK_OFF_IND6*SCALING_FACTOR_BI;
+                break;
+              case 7: PREAMBLE_BACKOFF=BACK_OFF_IND7*SCALING_FACTOR_BI;
+                break;
+              case 8: PREAMBLE_BACKOFF=BACK_OFF_IND8*SCALING_FACTOR_BI;
+                break;    
+              case 9: PREAMBLE_BACKOFF=BACK_OFF_IND9*SCALING_FACTOR_BI;
+                break;    
+              case 10:PREAMBLE_BACKOFF=BACK_OFF_IND10*SCALING_FACTOR_BI;
+                break;    
+              case 11: PREAMBLE_BACKOFF=BACK_OFF_IND11*SCALING_FACTOR_BI;
+                break;    
+              case 12: PREAMBLE_BACKOFF=BACK_OFF_IND12*SCALING_FACTOR_BI;
+                break;    
+              case 13: PREAMBLE_BACKOFF=BACK_OFF_IND13*SCALING_FACTOR_BI;
+                break;
+              // case 14 and 15 reserved value. (?)
+            }
+         
+          }
+          else 
+          {
+            PREAMBLE_BACKOFF=0;
+          }
   
 
 
+          
+
+          if(mac_pdu.ra_subheader_rapid.RAPID == PREAMBLE_INDEX || mac_pdu.mac_rar_rapid.ra_subheader_rapid.RAPID == PREAMBLE_INDEX)
+          {
+            printf("RAR reception successful\n");
+            f_rarecept=1;
+            break;
+          } 
+          
+        }
+        else
+        {
+          printf("ra_window expired\n");
+          PREAMBLE_TRANSMISSION_COUNTER++;
+          if (PREAMBLE_TRANSMISSION_COUNTER==attempt1->cfra->occasions->rach_ConfigGeneric.preambleTransMax)
+          {
+            /* code */
+          }
+           
+          backoff_time=uniform_distribution(0,PREAMBLE_BACKOFF);
+          printf("%d\n", backoff_time);
+          // call resource selection function
+
+          break;
+        }
 
 
-  if(mac_pdu.ra_subheader_rapid.RAPID == PREAMBLE_INDEX || mac_pdu.mac_rar_rapid.ra_subheader_rapid.RAPID == PREAMBLE_INDEX)
-  {
-    printf("RAR reception successful\n");
-    rar_reception=1;
-    
-    if(mac_pdu.ra_subheader_rapid.T ==1 && (F_SI_PREAMBLE==1))// checks if the random preamble is si_requestconfig)// to check if only RAPID subheader is present.
-    {
-      printf("random access procedure is successfully completed\n ");
-      F_ACKSI_request =1;           //send ack for SI request to upper layers.  
-    }
-    else
-    {
-      
-      // section 5.2 (process Timing advance command)
-      
-      if(1) // srs-only serving cell
-      {
-        //ignore UL grant
-      }
-      else
-      {
-                    
-        // decoded UL-GRANT to be sent to lower layers
-        PHY_BUF[1]=mac_pdu.mac_rar_rapid.mac_rar.H_Hopping_Flag;
-        PHY_BUF[2]=mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Freq;
-        PHY_BUF[3]=mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Time;
-        PHY_BUF[4]=mac_pdu.mac_rar_rapid.mac_rar.MCS;
-        PHY_BUF[5]=mac_pdu.mac_rar_rapid.mac_rar.TPC;
-        PHY_BUF[6]=mac_pdu.mac_rar_rapid.mac_rar.CSI_Request;                                            
-      }
-      if(PREAMBLE_INDEX != 0) // not selected by mac among CB-preambles
-      {
-        printf("random access procedure is successfully completed\n ");
-        return;
-      }
-      else
-      {
-        // contention based 
-        TEMPORARY_CRNTI = mac_pdu.mac_rar_rapid.mac_rar.T_CRNTI;
-      }
-    }
-  }  
-
-
-/*******************************ra_response window expires***********************************************************/
-  if ((t_rar > t_preamblesent + ra_respwindow) && rar_reception!=1)
-  {
-      printf("RA_WINDOW EXPIRED, RAR NOT RECEIVED");
   }
+       //printf("%02x\n",rarh->RAPID);
+   if (f_rarecept==1)
+          {
+            printf("Received RAR (%02x|%02x.%02x.%02x.%02x.%02x.%02x.%02x) for preamble %d\n",
+            *(uint8_t *) rarh, rar[0], rar[1], rar[2],
+            rar[3], rar[4], rar[5], rar[6], rarh->RAPID);
+            if(mac_pdu.ra_subheader_rapid.T ==1 && (F_SI_PREAMBLE==1))// checks if the random preamble is si_requestconfig)// to check if only RAPID subheader is present.
+            {
+               printf("random access procedure is successfully completed : SI REQUEST\n ");
+               F_ACKSI_request =1;           //send ack for SI request to upper layers.  
+            }
+            else
+            {
+      
+              // section 5.2 (process Timing advance command)
+      
+              if(1) // srs-only serving cell
+              {
+                //ignore UL grant
+              }
+              else
+              {
+                    
+                // decoded UL-GRANT to be sent to lower layers
+                printf("decoded RAR- TAC:%d\n Hopping  flag:%d\n PUSCH_Freq:%d\n PUSCH_Time:%d\n  MCS:%d\n TPC:%d\n CSI:%d\n T_CRNTI:%d\n", 
+                          mac_pdu.mac_rar_rapid.mac_rar.TAC,mac_pdu.mac_rar_rapid.mac_rar.H_Hopping_Flag,
+                          mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Freq,mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Time,mac_pdu.mac_rar_rapid.mac_rar.MCS, 
+                          mac_pdu.mac_rar_rapid.mac_rar.TPC,mac_pdu.mac_rar_rapid.mac_rar.CSI_Request,mac_pdu.mac_rar_rapid.mac_rar.T_CRNTI);
 
-
+                PHY_BUF[1]=mac_pdu.mac_rar_rapid.mac_rar.H_Hopping_Flag;
+                PHY_BUF[2]=mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Freq;
+                PHY_BUF[3]=mac_pdu.mac_rar_rapid.mac_rar.PUSCH_Time;
+                PHY_BUF[4]=mac_pdu.mac_rar_rapid.mac_rar.MCS;
+                PHY_BUF[5]=mac_pdu.mac_rar_rapid.mac_rar.TPC;
+                PHY_BUF[6]=mac_pdu.mac_rar_rapid.mac_rar.CSI_Request;                                            
+              }
+              if(PREAMBLE_INDEX != 0) // not selected by mac among CB-preambles
+              {
+                printf("random access procedure is successfully completed\n ");
+                return;
+              }
+              else
+              {
+                  // contention based 
+                TEMPORARY_CRNTI = mac_pdu.mac_rar_rapid.mac_rar.T_CRNTI;
+              }
+            }
+          }
+ 
 
    
   return;
-} 
+}
 
 
 int create_socket()
@@ -820,9 +871,9 @@ int create_socket()
 int main(int argc, char const *argv[])
 {
     
-int sockfd;
+int sockfd,time;
+clock_t t;
   //SI_RequestConfig_t *si_reqconfig=NULL;
-clock_t t_preamblesent;
   
 MAC_PDU_RAR m_pdu;
 
@@ -859,13 +910,12 @@ RA_RNTI = preamble_transmit(pformat,
 
 // Preamble transmission assumed to be done by PHY
 // Yet to know what 5.1.3 (UE) has to send to 5.1.4(gNB)
+t=clock();
 
-
-// send preamble
-// timer after preamble is just sent. 
-t_preamblesent=clock();
-
-
-rar_reception(sockfd,t_preamblesent); 
+time = t*1000/CLOCKS_PER_SEC;
+printf("time after preamble is sent: %d\n",time );
+setTimeout(2);
+rar_reception(sockfd,time,attempt1); 
 return 0;
+
 }
