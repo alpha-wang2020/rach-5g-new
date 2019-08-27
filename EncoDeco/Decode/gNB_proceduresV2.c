@@ -389,7 +389,7 @@ int main(int ac, char **av)
 
     preamble_assigner(UE_list); 
    int abc= cfrafill(ac,av);
-	rar_fill(RAR_pdu.payload,56,122,connfd);
+	rar_fill(RAR_pdu.payload,preamble_index,122,connfd);
 	close(connfd); 
 
 	
