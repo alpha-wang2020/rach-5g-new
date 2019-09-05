@@ -34,39 +34,37 @@ int rar_fill(uint8_t * const dlsch_buffer,int j,int preamble_index,int temp)
 	
 	if (BI==1)
 	{
-			rarh_BI->E = 0;
-			rarh_BI->T = 0;
-			rarh_BI->BI = 0;
+			rarh_BI->E = 1;
+			rarh_BI->T = 1;
+			rarh_BI->BI = 15;
 
 			rar[0] = (uint8_t) (rarh_BI->E)<<7;
 			rar[0] |= (uint8_t) (rarh_BI->T)<<6;
-			rar[0] |=(uint8_t)(rarh_BI->BI )>>4;
+			rar[0] |=(uint8_t)(rarh_BI->BI );
+
+			rar = (uint8_t*) rar+1;
 
 			
-
-		
-		
 
 	}
 
-		if (f==-1 || f==2)
-		{
-			rar=(uint8_t*) rar+j*1;
-			
-		}
-		else if (f==1) 	
-		{
-			rar=(uint8_t*) rar+j*8;
-			
-		}
+		
 
 
 	if (preamble_index<=numberofpreamble_SI)
 	{
 
 		
-		//printf("SIze of rar:%d\n", sizeof(rar) );
-		
+			if ( f==-1 || f==2)
+			{
+				rar=(uint8_t*) rar+j*1;
+				
+			}
+			else if (f==1) 	
+			{
+				rar=(uint8_t*) rar+j*8;
+				
+			}
 
 
 
@@ -77,18 +75,31 @@ int rar_fill(uint8_t * const dlsch_buffer,int j,int preamble_index,int temp)
 			rar[0] = (uint8_t) (rarh_RAPID->E)<<7;
 			rar[0] |= (uint8_t) (rarh_RAPID->T)<<6;
 			rar[0] |=(uint8_t)(rarh_RAPID->RAPID);
+			
+
+			for (i=0;i<sizeof(rar);i++)
+			{
+				printf(" 0x%02x|",rar[i]);
+			}
+			
 			return f=2;
-		
-		
 		
 
 	}
 	else
 	{
 
-						
-			rar=(uint8_t*) rar+j*8;
-
+			if (f==-1 || f==2)
+			{
+				rar=(uint8_t*) rar+j*1;
+				
+			}
+			else if (f==1) 	
+			{
+				rar=(uint8_t*) rar+j*8;
+				
+			}			
+			
 			rarh_RAPID->E = 1;
 			rarh_RAPID->T = 1;
 			rarh_RAPID->RAPID = preamble_index;
@@ -139,6 +150,13 @@ int rar_fill(uint8_t * const dlsch_buffer,int j,int preamble_index,int temp)
 			rar[5] |= (uint8_t) (TPC << 1) & 0x0e;
 
 			rar[5] |= (uint8_t) (CSI_Request);
+
+			for (i=0;i<sizeof(rar);i++)
+			{
+				printf(" 0x%02x|",rar[i]);
+			}
+			
+
 			
 			return f=1;
 		
@@ -156,15 +174,6 @@ int rar_fill(uint8_t * const dlsch_buffer,int j,int preamble_index,int temp)
 	
 	
 	//printf("%d\n", sizeof(dlsch_buffer));
-
-	
-	
-	for (i=0;i<sizeof(rar);i++)
-	{
-		printf("0x%02x|",rar[i]);
-	}
-	
-
 	return;
 	
 }
@@ -175,8 +184,11 @@ int main(int argc, char const *argv[])
 	int i,j;
 	int num_user =3;
 	int temp=-1;
+
+	srand(time(0));
 	for (j=0;j<num_user;j++)
-	{
+	{	
+
 		preamble_index=rand()%64;
 		printf("PREAMBLE INDEX%d\n", preamble_index);
 		temp=rar_fill(payload,j,preamble_index,temp);
